@@ -1,0 +1,16 @@
+{
+  "requests": 1000,
+  "workers": 1,
+  "provider": "extractive (no LLM call)",
+  "sequential_ms": {
+    "p50": 5.39,
+    "p95": 7.89
+  },
+  "concurrent_16_ms": {
+    "p50": 122.5,
+    "p95": 173.16
+  },
+  "throughput_rps": 127.0,
+  "errors": 0,
+  "cpus": 2
+}

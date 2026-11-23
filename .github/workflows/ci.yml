@@ -1,0 +1,38 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  test-and-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: pytest -q
+      - name: Creep RAG regression gate
+        run: |
+          python eval/run_creep_eval.py
+          python - <<'PY'
+          import json
+          m = json.load(open("results/creep_metrics.json"))
+          filt = m["retrieval_test"]["tuned hybrid + metadata filter"]
+          g, e = m["gate_test"], m["end_to_end_test"]
+          assert filt["all"]["recall@5"] >= 0.98, filt["all"]
+          assert filt["approx_lookup"]["recall@1"] >= 0.95, filt["approx_lookup"]
+          assert g["held_out_alloy_questions_declined"] >= 0.85, g
+          assert e["test_lookup"]["correct_when_answered"] >= 0.98, e["test_lookup"]
+          print("creep gate passed")
+          PY
+      - name: SQuAD benchmark gate
+        run: |
+          python scripts/get_data.py
+          python eval/run_squad_eval.py
+          python - <<'PY'
+          import json
+          m = json.load(open("results/squad_metrics.json"))
+          tuned = [v for k, v in m["retrieval_test"].items() if k.startswith("hybrid RRF tuned")][0]
+          assert tuned["recall@5"] >= 0.90, tuned
+          assert m["gate_test"]["auroc_in_vs_out_of_scope"] >= 0.95, m["gate_test"]
+          PY
